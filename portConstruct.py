@@ -5,7 +5,6 @@ import numpy as np
 
 
 def readCSV(fileLoc, startRow=0):
-    # _headersToFind = ['Action', 'Date of Transaction', 'Ticker', 'Company Name', 'Sector', 'Number of Shares', 'Sale Price/Share']
     csv = pd.read_csv(
         fileLoc, header=startRow, skip_blank_lines=True, memory_map=True)
     csv.dropna(inplace=True, thresh=4)
@@ -130,9 +129,7 @@ class PortfolioBuilder(object):
 
             self.executeTx(tx)
 
-            # break
-
-    def executeTx(self, tx):
+    def executeTx(self, tx) -> None:
         if 'buy' in tx.action.lower():
             self._buy(tx)
         elif 'sell' in tx.action.lower():
@@ -151,7 +148,7 @@ class PortfolioBuilder(object):
 
         return pos
 
-    def _sell(self, tx):
+    def _sell(self, tx) -> None:
 
         aggQty = sum([pos.quantity for pos in self.activePos[tx.ticker]])
         qtyLeftToSell = aggQty - tx.quantity
