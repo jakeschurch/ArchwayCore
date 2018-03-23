@@ -33,7 +33,7 @@ class xlFunctionSelector(object):
 
     def _abstractBloombergFunc(self, ticker, field, params=None, hist=False):
         params = ', ' + params if params is not None else None
-        func = 'bdh' if hist == True else 'bdp'
+        func = 'bdh' if hist else 'bdp'
         return f'{func}(\"{ticker}\", \"{field}\" {params})'
 
     def sedolID(self, ticker):
@@ -42,7 +42,7 @@ class xlFunctionSelector(object):
         else:
             return self._abstractBloombergFunc(ticker, 'ID_SEDOL1')
 
-    def sector(self, ticker):
+    def subsector(self, ticker):
         if self.funcsWanted == 'factset':
             return self._abstractFactsetFunc(ticker, 'FG_GICS_INDUSTRY')
         else:
@@ -94,7 +94,7 @@ class xlFunctionSelector(object):
             startDateList = self.startDate.split('/')
             endDateList = self.endDate.split('/')
             startParams = f'\"DVD_START_DT\", {startDateList[2]}{startDateList[1]}{startDateList[0]}, '
-            endParams = f'\"DVD_END_DT\, {endDateList[2]}{endDateList[1]}{endDateList[0]}'
+            endParams = f'\"DVD_END_DT\", {endDateList[2]}{endDateList[1]}{endDateList[0]}'
 
             return self._abstractBloombergFunc(
                 ticker, 'DVD_HIST_ALL', params=startParams + endParams)
