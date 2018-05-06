@@ -47,8 +47,7 @@ class xlFunctionSelector(object):
             return self._abstractFactsetFunc(ticker, 'FG_GICS_INDUSTRY')
         else:
             return self._abstractBloombergFunc(
-                ticker, 'GICS_INDUSTRY_NAME',
-                params='\"Fill\",\"Fund\"')
+                ticker, 'GICS_INDUSTRY_NAME', params='\"Fill\",\"Fund\"')
 
     def compName(self, ticker):
         if self.funcsWanted == 'factset':
@@ -84,12 +83,15 @@ class xlFunctionSelector(object):
         else:
             return self._abstractBloombergFunc(ticker, 'BEST_PE_RATIO')
 
-    def dividends(self, ticker):
+    def dividends(self, ticker, startDate=None):
+        if startDate is None:
+            startDate = self.fiscalYearEnd
+
         if self.funcsWanted == 'factset':
+
             return self._abstractFactsetFunc(
-                ticker, f"P_DIVS_PD_R({self.startDate},{self.endDate},,,,"
-                "TOTAL"
-                ")")
+                ticker, f'P_DIVS_PD_R({self.startDate},{self.endDate},,,,'
+                '\"\"TOTAL\"\")")')
         else:
             startDateList = self.startDate.split('/')
             endDateList = self.endDate.split('/')
@@ -98,6 +100,14 @@ class xlFunctionSelector(object):
 
             return self._abstractBloombergFunc(
                 ticker, 'DVD_HIST_ALL', params=startParams + endParams)
+
+    def gainLoss(self, pos, startDate=None):
+        if startDate is None:
+            startDate = self.fiscalYearEnd
+
+        func = f'({self.histPrice(pos.ticker, self.endDate)}-{self.histPrice(pos.ticker, startDate)}+{self.dividends(pos.ticker, pos.buyDate)})'
+
+        return func
 
     def mktCap(self, ticker):
         if self.funcsWanted == 'factset':
