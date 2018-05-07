@@ -164,17 +164,20 @@ class PortfolioBuilder(object):
                 pos.qty += iPos.qty
                 pos.costBasis += iPos.costBasis
 
-                pos.buyDate = iPos.buyDate if iPos.buyDate <= pos.buyDate else pos.buyDate
+                if iPos.buyDate <= pos.buyDate:
+                    pos.buyDate = iPos.buyDate
 
         pos.costBasis /= len(self.activePos[key])
 
         return pos
 
-    def getOpen(self) -> list:
+    def getBySector(self, sector: str = None) -> list:
         openPositions = []
         for k, _ in self.activePos:
             if k != []:
-                openPositions.append(self.activePos[k])
+                if (self.activePos[k][0].sector == sector or
+                        sector == 'All'):
+                    openPositions.append(self.activePos[k])
         return openPositions
 
 
@@ -205,6 +208,7 @@ class currentWriter():
         self,
         port,
         sheet,
+        sectorWanted,
         functioner,
         dateof,
         datefrom,
@@ -215,13 +219,41 @@ class currentWriter():
         self.i = 0  # row index
         self.dateof = dateof
         self.datefrom = datefrom
+        self.sector = sectorWanted
 
     def Write(self, sheet) -> int:
         # Write headers
         self._headers(sheet)
 
         # Write position data
-        data = self.port.getOpen()
+        if self.sector == 'All':
+            self._row(
+                sheet,
+                [
+                    # First data block (A:J)
+                    'FDRXX',
+                    'Fidelity Government Cash Reserves Shs of Benef Interest',
+                    '=#N/A',
+                    port.cash,
+                    1.00,
+                    port.cash,
+                    1.00,
+                    port.cash,
+                    0,
+                    0,
+                    # Second data block (K:M)
+                    '',
+                    1.00,
+                    # TODO: get Beginning cash value
+                    '',
+                    # Third data block (S:Z)
+                    '', 0, 0,
+                    # TODO: get weight of cash
+                    '',
+                    0, 0, 0, 0,
+                ]
+            )
+        data = self.port.getBySector(self.sector)
         for posList in data:
             self._data(sheet, posList)
 
@@ -232,12 +264,12 @@ class currentWriter():
 
     def _headers(self, sheet) -> None:
         # Write meta-headers.
-        sheet['A2:B2'].value = 'Current Holdings as of: {0}'.format(
+        sheet['A2:B2'] = 'Holdings as of: {0}'.format(
             self.dateof.strftime('%m-%d-%Y'))
-        sheet['G2:J2'].value = 'Current Value'
-        sheet['O2:R2'].value = 'Dividends'
-        sheet['T2:W2'].value = 'Year to Date Performance'
-        sheet['X2:Z2'].value = 'Beta'
+        sheet['G2:J2'] = 'Current Value'
+        sheet['O2:R2'] = 'Dividends'
+        sheet['T2:W2'] = 'Year to Date Performance'
+        sheet['X2:Z2'] = 'Beta'
 
         # Write headers.
         __headers = [
@@ -383,13 +415,13 @@ class currentWriter():
     def __writeTotals(self, sheet, cols, startRow, endRow) -> None:
         for col in cols:
             totalValue = f'=sum({col}{startRow}:{col}{endRow-1})'
-            sheet[f'{col}{endRow}'].value = totalValue
+            sheet[f'{col}{endRow}'] = totalValue
 
         return None
 
     def _row(self, sheet, vals: list) -> None:
         for j in len(vals):
-            sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
+            sheet[f'{string.ascii_lowercase[j]}{self.i}'] = vals[j]
         self.i += 1
 
         return None
@@ -427,9 +459,9 @@ class realizedWriter():
     def _headers(self, sheet) -> None:
         # Write meta-headers
         asOf = f'Realized Holdings as of: {self.dateof.strftime("%m-%d-%Y")}'
-        sheet[f'A{self.i}:B{self.i}'].value = asOf
-        sheet[f'F{self.i}:G{self.i}'].value = 'Beginning of Year'
-        sheet[f'H{self.i}:I{self.i}'].value = 'At Sale'
+        sheet[f'A{self.i}:B{self.i}'] = asOf
+        sheet[f'F{self.i}:G{self.i}'] = 'Beginning of Year'
+        sheet[f'H{self.i}:I{self.i}'] = 'At Sale'
         self.i += 1
 
         # Write Headers
@@ -470,19 +502,19 @@ class realizedWriter():
         ]
 
     def _total(self, sheet) -> None:
-        sheet[f'A{self.i}'].value = 'TOTALS'
+        sheet[f'A{self.i}'] = 'TOTALS'
         self.__writeTotals(sheet, 'gijk', self.iLast, self.i)
 
     def __writeTotals(self, sheet, col, startRow, endRow):
         for col in cols:
             totalValue = f'=sum({col}{startRow}:{col}{endRow-1})'
-            sheet[f'{col}{endRow}'].value = totalValue
+            sheet[f'{col}{endRow}'] = totalValue
 
         return None
 
     def _row(self, sheet, vals: list) -> None:
         for j in len(vals):
-            sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
+            sheet[f'{string.ascii_lowercase[j]}{self.i}'] = vals[j]
         self.i += 1
 
         return None
@@ -491,8 +523,8 @@ class realizedWriter():
 class alphaWriter():
     def __init__(
         self,
-        currentEndRow,
-        realizedEndRow,
+        currentEndRow: int,
+        realizedEndRow: int,
     ):
         self.iCurrent = currentEndRow
         self.iRealized = realizedEndRow
@@ -579,7 +611,7 @@ class alphaWriter():
         alphaStart = self.iRealized + 6
 
         # Write total row.
-        sheet[f'A{self.i}'].value = 'TOTALS'
+        sheet[f'A{self.i}'] = 'TOTALS'
         self._row(
             sheet,
             [
@@ -595,29 +627,49 @@ class alphaWriter():
             ]
         )
         # Write relative return data
-        sheet[f'L{alphaStart}'].value = f'J{self.i-1}'
+        sheet[f'L{alphaStart}'] = f'J{self.i-1}'
         # TODO: relative return against benchmark
-        sheet[f'M{alphaStart}'].value = 'TODO:'
-        sheet[f'N{alphaStart}'].value = f'L{alphaStart}-M{alphaStart}'
+        sheet[f'M{alphaStart}'] = 'TODO:'
+        sheet[f'N{alphaStart}'] = f'L{alphaStart}-M{alphaStart}'
 
         return None
 
     def _row(self, sheet: 'Worksheet', vals: list):
         for j in len(vals):
-            sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
+            sheet[f'{string.ascii_lowercase[j]}{self.i}'] = vals[j]
         self.i += 1
 
         return None
 
 
 class ExcelWriter(object):
+    sectorMap = {
+        '*': 'All',
+        '0': 'Consumer Discretionary',
+        '1': 'Consumer Staples',
+        '2': 'Energy',
+        '3': 'Financials',
+        '4': 'Healthcare',
+        '5': 'Industrials',
+        '6': 'Materials',
+        '7': 'Real Estate',
+        '8': 'Technology',
+        '9': 'Telecom',
+        '10': 'Utilities'
+    }
+
     def __init__(
             self,
             port,
+            sectorsWanted=['*'],
             funcsWanted='factset',
             endDate=dt.datetime.today(),
             startDate=dt.datetime.today() - dt.timedelta(days=365)
     ):
+        self.sectors = []
+        for Id in sectorsWanted:
+            self.sectors.append(self.sectorMap[Id])
+
         self.rowIndex = 0
         self.Functioner = xlFuncs.xlFunctionSelector(startDate, endDate,
                                                      funcsWanted)
@@ -629,223 +681,30 @@ class ExcelWriter(object):
     def Write(self):
         templatePath = os.path.abspath('data_files/template.xlsx')
         wb = openpyxl.load_workbook(templatePath)
-        currentSheet = wb.copy_worksheet(wb['Sheet1'])
 
-        # Write Current Holding Data
-        current = currentWriter(
-            self.port, currentSheet, self.Functioner,
-            self.startDate, self.endDate
-        )
-        iCurrentEnd = current.Write(currentSheet)
+        for sector in self.sectors:
+            sectorSheet = wb.copy_worksheet(wb['Sheet1'])
+            sectorSheet.title = sector if sector != 'All' else 'Archway Fund'
 
-        # Write Realized Holding Data
-        realizedSheet = wb.copy_worksheet(wb['Sheet1'])
+            # Write Current Holding Data
+            current = currentWriter(
+                self.port, sectorSheet, sector, self.Functioner,
+                self.startDate, self.endDate
+            )
+            iCurrentEnd = current.Write(sectorSheet)
 
-        realized = realizedWriter(
-            self.port.closed, self.functioner,
-            iCurrentEnd, self.dateof, self.datefrom,
-        )
-        iRealizedEnd = realized.Write(realizedSheet)
+            # Write Realized Holding Data
+            realized = realizedWriter(
+                self.port.closed, self.Functioner,
+                iCurrentEnd, self.startDate, self.endDate,
+            )
+            iRealizedEnd = realized.Write(sectorSheet)
 
-    def make(self):
-        templatePath = os.path.abspath('data_files/template.xlsx')
-        wb = openpyxl.load_workbook(templatePath)
-        ws = wb.copy_worksheet(wb['currentHoldings'])
-        ws.title = 'aifHoldings'
-
-        ws['A1'] = 'Date Updated as of: {0}'.format(self.endDate)
-
-        self.writeCash(ws, self.port)
-        for _, posList in self.port.activePos.items():
-            # aggPos = self.port.getAggrPos(pos.ticker)
-            self.write(posList, ws)
-        self.writeTotalRow(ws)
-
-        # after all position lists have been written, output portfolio weights.
-
-        for n in range(4, self.rowIndex + 1):
-            # Portfolio Weight
-            ws['K' + str(n)] = '=J{0}/J{1}'.format(n, self.rowIndex)
-
-        # Create Realized Holdings Sheet
-        realizedSheet = wb.copy_worksheet(wb['currentHoldings'])
-        realizedSheet['A1'] = 'Date Updated as of: {0}'.format(
-            self.endDate.strftime('%m-%d-%Y'))
-        realizedSheet.title = "Realized Holdings"
-        for pos in self.port.closedPos:
-            self.makeRealized(pos, realizedSheet)
+            # Write YTD Alpha Data
+            alpha = alphaWriter(
+                iCurrentEnd, iRealizedEnd,
+            )
+            alpha.Write(sectorSheet)
 
         wb.save('portOutput.xlsx')
-
-    def makeRealized(self, pos, sheet):
-        # TODO: test
-
-        # Ticker
-        sheet['A' + str(self.realizedIndex)].value = pos.ticker
-
-        # Sector
-        sheet['B{0}'.format(self.realizedIndex)].value = pos.sector
-
-        # Name
-        sheet['C{0}'.format(
-            self.realizedIndex)].value = '=' + self.Functioner.compName(
-                pos.ticker)
-
-        # DateBought
-        sheet['D{0}'.format(
-            self.realizedIndex)].value = pos.buyDate.strftime('%m/%d/%Y')
-
-        # DateSold
-        sheet['E{0}'.format(
-            self.realizedIndex)].value = pos.sellDate.strftime('%m/%d/%Y')
-
-        # CostBasis
-        sheet['F{0}'.format(self.realizedIndex)].value = pos.costBasis
-
-        # YTD Value
-        sheet['G{0}'.format(
-            self.realizedIndex)].value = '=' + self.Functioner.gainLoss(
-                pos)
-
-        # Shares Sold
-        sheet['H{0}'.format(self.realizedIndex)].value = pos.qty
-
-        # Sale Price
-        sheet['I{0}'.format(self.realizedIndex)].value = pos.costSold
-
-        # Sale Value
-        sheet['J{0}'.format(self.realizedIndex)].value = '=I{0}*H{0}'.format(
-            self.realizedIndex)
-
-        # Gain/Loss($)
-        sheet['K{0}'.format(
-            self.realizedIndex)].value = '=' + self.Functioner.gainLoss(
-                pos, pos.buyDate) + f'*{pos.qty}'
-
-        # Gain/Loss(%)
-        sheet['L{0}'.format(
-            self.realizedIndex)].value = '=' + self.Functioner.gainLoss(
-                pos,
-                pos.buyDate) + f'/{self.Functioner.histPrice(pos.buyDate)}'
-
-        self.realizedIndex += 1
-
-    def write(self, posList, sheet):
-        try:
-            firstPos = posList[0]
-        except IndexError:
-            return
-
-        _aggrQty = self.port.getAggrQty(firstPos.ticker)
-
-        # Ticker
-        sheet['A' + str(self.rowIndex)].value = firstPos.ticker
-
-        # Company Name
-        sheet['B{0}'.format(
-            self.rowIndex)].value = '=' + self.Functioner.compName(
-                firstPos.ticker)
-
-        # Total Quantity
-        sheet['C{0}'.format(self.rowIndex)].value = sum(
-            [pos.qty for pos in posList])
-
-        # Average Cost Basis per share
-        sheet['D{0}'.format(self.rowIndex)].value = sum(
-            [pos.costBasis * (pos.qty / _aggrQty) for pos in posList])
-
-        # Total Cost Basis
-        sheet['E{0}'.format(self.rowIndex)].value = sum(
-            [pos.qty * pos.costBasis for pos in posList])
-
-        # Earliest Date Bought
-        earliestDate = min([pos.buyDate for pos in posList])
-
-        # if earliestDate < dt.datetime(year=2016, month=1, day=1):
-        #     earliestDate = "Before Jan 1, 16"
-        # else:
-        earliestDate = earliestDate.strftime('%m/%d/%Y')
-        sheet['F{0}'.format(self.rowIndex)].value = earliestDate
-
-        # Sector
-        sheet['G{0}'.format(self.rowIndex)].value = firstPos.sector
-
-        # Subsector
-        sheet['H{0}'.format(
-            self.rowIndex)].value = '=IFNA(' + self.Functioner.subsector(
-                firstPos.ticker) + ',\"Fund\")'
-
-        # Current Price
-        sheet['I{0}'.format(
-            self.rowIndex)].value = '=' + self.Functioner.histPrice(
-                firstPos.ticker)
-
-        # Current Position Value
-        sheet['J{0}'.format(self.rowIndex)].value = '=(I{0}*C{0}){1}'.format(
-            self.rowIndex, ' '.join([
-                '+' + self.Functioner.dividends(pos.ticker) for pos in posList
-            ]))
-
-        # 3-Year Beta
-        sheet['L{0}'.format(self.rowIndex)].value = '=' + self.Functioner.beta(
-            firstPos.ticker)
-
-        # ESG - Rankings
-        sheet['M{0}'.format(self.rowIndex)].value = self.Functioner.esg(
-            firstPos.ticker)
-
-        # # MktCap Size TODO
-        # sheet['N{0}'.format(self.rowIndex)].value
-
-        # Price/Earnings Ratio
-        sheet['O{0}'.format(
-            self.rowIndex)].value = '=IFNA(' + self.Functioner.peRatio(
-                firstPos.ticker) + ',\"NA\"'
-
-        self.rowIndex += 1
-
-    def writeCash(self, sheet, port):
-        # Ticker
-        sheet['A{0}'.format(self.rowIndex)].value = "FDRXX"
-
-        # Company Name
-        sheet['B' + str(
-            self.rowIndex
-        )] = 'Fidelity Government Cash Reserves Shs of Benef Interest'
-
-        # Total Quantity
-        sheet['C{0}'.format(self.rowIndex)].value = port.cash
-
-        # Average Cost Basis per share
-        sheet['D{0}'.format(self.rowIndex)].value = 1
-
-        # Total Cost Basis
-        sheet['E{0}'.format(self.rowIndex)].value = port.cash
-
-        # Earliest Date Bought REVIEW
-        sheet['F{0}'.format(self.rowIndex)].value = ''
-
-        # Sector
-        sheet['G{0}'.format(self.rowIndex)].value = 'Cash'
-
-        # Subsector
-        sheet['H{0}'.format(self.rowIndex)].value = 'Cash'
-
-        # Current Price
-        sheet['I{0}'.format(self.rowIndex)].value = port.cash
-
-        sheet['J{0}'.format(self.rowIndex)].value = port.cash
-
-        self.rowIndex += 1
-
-    def writeTotalRow(self, sheet):
-        # Ticker
-        sheet['A{0}'.format(self.rowIndex)].value = "Total"
-
-        # Total Cost Basis
-        sheet['E{0}'.format(
-            self.rowIndex)].value = '=sum(E4:E{0})'.format(self.rowIndex - 1)
-
-        # Current Value of Position
-        sheet['J{0}'.format(
-            self.rowIndex)].value = '=sum(J4:J{0})'.format(self.rowIndex - 1)
+        # TODO: option to specify output path

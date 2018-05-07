@@ -38,9 +38,11 @@ def main():
         r'/home/jake/Desktop/Attribution.csv', 0, fiscalYearEnd, today
     )
 
-    posWriter = pt.PosWriter(
-        portBuilder, 'factset', endDate=today, startDate=fiscalYearEnd)
-    posWriter.make()
+    xlWriter = pt.ExcelWriter(
+        portBuilder,
+        ['*'],
+        'factset', endDate=today, startDate=fiscalYearEnd)
+    xlWriter.Write()
 
 
 if __name__ == '__main__':
