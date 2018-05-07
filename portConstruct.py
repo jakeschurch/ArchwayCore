@@ -386,7 +386,7 @@ class currentWriter():
 
         return None
 
-    def _row(self, sheet, vals: list, row: int) -> None:
+    def _row(self, sheet, vals: list) -> None:
         for j in len(vals):
             sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
         self.i += 1
@@ -398,39 +398,93 @@ class realizedWriter():
     def __init__(
         self,
         closed,
-        sheet,
         functioner,
         iLast,
         dateof,
         datefrom,
     ):
+        self.iLast = iLast + 3
         self.closed = closed
-        self.sheet = sheet
         self.functioner = functioner
         self.i = iLast + 3  # row index
         self.dateof = dateof
         self.datefrom = datefrom
 
-    def Write(self):
-        pass
+    def Write(self, sheet) -> int:
 
-    def _headers(self, sheet):
+        # Write headers
+        self._headers(sheet)
+
+        # Write realized holding data
+        self._data(sheet)
+
+        # Write totals
+        self._total(sheet)
+
+        return self.i
+
+    def _headers(self, sheet) -> None:
         # Write meta-headers
-        asOf = f'Current Holdings as of: {self.dateof.strftime("%m-%d-%Y")}'
+        asOf = f'Realized Holdings as of: {self.dateof.strftime("%m-%d-%Y")}'
         sheet[f'A{self.i}:B{self.i}'].value = asOf
         sheet[f'F{self.i}:G{self.i}'].value = 'Beginning of Year'
+        sheet[f'H{self.i}:I{self.i}'].value = 'At Sale'
+        self.i += 1
 
-    def _data():
-        pass
+        # Write Headers
+        headers = [
+            'Ticker',
+            'Security Name',
+            'Date Acquired',
+            'Date Sold',
+            'Quantity',
+            'Price',
+            'Market Value',
+            'Price',
+            'Market Value',
+            'Dividends Collected',
+            'YTD ($)',
+            'YTD (%)',
+        ]
+        self._row(sheet, headers)
 
-    def _total(self):
-        pass
+        return None
 
-    def __writeTotals():
-        pass
+    def _data(self, sheet) -> None:
+        for pos in self.closed:
+            self._row(sheet, self.__outputPos(pos))
 
-    def _row():
-        pass
+        return None
+
+    def __outputPos(self, pos: Position) -> list:
+        divs = self.functioner.dividends(pos.ticker, pos.buyDate, pos.sellDate)
+        return [
+            pos.ticker,
+            self.functioner.compName(pos.ticker),
+            pos.buyDate, pos.sellDate,
+            pos.qty, pos.costBasis, f'=d{self.i}*e{self.i}',
+            pos.costSold, f'=f{self.i}*e{self.i}',
+            f'{divs}*e{self.i}', f'=(i{self.i}+j{self.i})-g{self.i}',
+            f'=K{self.i}/G{self.i}',
+        ]
+
+    def _total(self, sheet) -> None:
+        sheet[f'A{self.i}'].value = 'TOTALS'
+        self.__writeTotals(sheet, 'gijk', self.iLast, self.i)
+
+    def __writeTotals(self, sheet, col, startRow, endRow):
+        for col in cols:
+            totalValue = f'=sum({col}{startRow}:{col}{endRow-1})'
+            sheet[f'{col}{endRow}'].value = totalValue
+
+        return None
+
+    def _row(self, sheet, vals: list) -> None:
+        for j in len(vals):
+            sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
+        self.i += 1
+
+        return None
 
 
 class PosWriter(object):

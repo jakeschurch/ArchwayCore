@@ -88,18 +88,20 @@ class xlFunctionSelector():
         else:
             return self._abstractBloombergFunc(ticker, 'BEST_PE_RATIO')
 
-    def dividends(self, ticker, startDate=None):
+    def dividends(self, ticker, startDate=None, endDate=None):
         if startDate is None:
             startDate = self.fiscalYearEnd
+        if endDate is None:
+            endDate = self.endDate
 
         if self.funcsWanted == 'factset':
-
             return self._abstractFactsetFunc(
-                ticker, f'P_DIVS_PD_R({self.startDate},{self.endDate},,,,'
-                '\"\"TOTAL\"\")")')
+                ticker, f'P_DIVS_PD_R({startDate},{endDate},,,,''\"\"TOTAL\"\")")')
+
         else:
-            startDateList = self.startDate.split('/')
-            endDateList = self.endDate.split('/')
+            startDateList = startDate.split('/')
+            endDateList = endDate.split('/')
+
             startParams = f'\"DVD_START_DT\", {startDateList[2]}{startDateList[1]}{startDateList[0]}, '
             endParams = f'\"DVD_END_DT\", {endDateList[2]}{endDateList[1]}{endDateList[0]}'
 
