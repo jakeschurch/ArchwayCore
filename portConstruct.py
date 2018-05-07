@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import xlFuncs
 import os
+import string
 
 
 def readCSV(fileLoc, startRow=0) -> pd.DataFrame:
@@ -169,6 +170,13 @@ class PortfolioBuilder(object):
 
         return pos
 
+    def getOpen(self) -> list:
+        openPositions = []
+        for k, _ in self.activePos:
+            if k != []:
+                openPositions.append(self.activePos[k])
+        return openPositions
+
 
 class Position(object):
     def __init__(self, **kwargs):
@@ -189,19 +197,316 @@ class Position(object):
         return str(self.__dict__)
 
 
+class currentWriter():
+    """currentWriter writes data about current positions to excel worksheet."""
+
+    def __init__(
+        self,
+        port,
+        sheet,
+        functioner,
+        dateof,
+        datefrom,
+    ):
+        self.port = port
+        self.sheet = sheet
+        self.functioner = functioner
+        self.i = 0  # row index
+        self.dateof = dateof
+        self.datefrom = datefrom
+
+    def Write(self, sheet) -> int:
+        # Write headers
+        self._headers(sheet)
+
+        # Write position data
+        data = self.port.getOpen()
+        for posList in data:
+            self._data(sheet, posList)
+
+        # Write total row
+        self._total(sheet)
+
+        return self.i
+
+    def _headers(self, sheet) -> None:
+        # Write meta-headers.
+        sheet['A2:B2'].value = 'Current Holdings as of: {0}'.format(
+            self.dateof.strftime('%m-%d-%Y'))
+        sheet['G2:J2'].value = 'Current Value'
+        sheet['O2:R2'].value = 'Dividends'
+        sheet['T2:W2'].value = 'Year to Date Performance'
+        sheet['X2:Z2'].value = 'Beta'
+
+        # Write headers.
+        __headers = [
+            # First Header Block (A:J)
+            'Ticker', 'Security Name', 'Date Acquired',
+            'Cost Basis Total', 'Price', 'Market Value',
+            'HPR $', 'HPR %',
+
+            # Second Header Block (K:M)
+            '', 'Price', 'Market Value'
+
+            # Third Header Block (N:R)
+            '', 'Div Paid YTD', 'TOtal Dividends Collected YTD',
+            'Most Recent Dividend Payment', 'Div Date',
+
+            # Fourth Header Block (S:Z)
+            '', 'YTD ($)', 'YTD (%)',
+            'Stock Weight in Sector', 'Contribution to YTD Sector Return',
+            '1 Year', '3 Year', '5 Year',
+        ]
+        self.i = 3
+        self._row(sheet, __headers, 3)
+        return None
+
+    def _data(self, sheet, posList) -> None:
+        """Write current holdings of a sector to excel sheet."""
+        try:
+            firstPos = posList[0]
+        except IndexError:
+            return
+
+        aggrQty = self.port.getAggrQty(firstPos.ticker)
+        # Write first block of values to excel sheet.
+        row = [
+            # First block of data --------------
+
+            # Ticker
+            firstPos.ticker,
+
+            # Company Name
+            '=' + self.functioner.compName(firstPos.ticker),
+
+            # Earliest Date Bought
+            min([pos.buyDate for pos in posList]).strftime('%m/%d/%Y'),
+
+            # Total Quantity
+            sum([pos.qty for pos in posList]),
+
+            # Avg Cost Basis
+            sum([pos.costBasis * (pos.qty / aggrQty) for pos in posList]),
+
+            # Total Cost Basis
+            sum([pos.qty * pos.costBasis for pos in posList]),
+
+            # Current Price
+            '=' + self.functioner.histPrice(firstPos.ticker),
+
+            # Market Value
+            f'=D{self.i}*G{self.i}',
+
+            # HPR ($)
+            f'==H{self.i}*F{self.i}',
+
+            # HPR (%)
+            f'==I{self.i}*F{self.i}',
+
+            '',
+            # Second block of data --------------
+
+            # Beginning of Period Price
+            self.functioner.histPrice(firstPos.ticker, self.datefrom),
+
+            # Beginning of Period Market Value
+            f'=L{self.i}*D{self.i}', '',
+
+            # Third block of data --------------
+
+            # Divs Paid YTD
+            self.functioner.dividends(
+                firstPos.ticker, startDate=self.datefrom),
+
+            # Total Dividends Collected YTD
+            sum([self.functioner.dividends(pos)
+                 for pos in posList]),
+
+            # TODO:  Most Recent Dividend Payment
+            '',
+
+            # TODO:  Most Recent Dividend Date
+            '', '',
+
+            # Fourth block of data --------------
+
+            # YTD ($)
+            f'=IFERROR(H{self.i}+P{self.i}-M{self.i}, \"\")',
+
+            # YTD (%)
+            f'=IFERROR((T{self.i}+P{self.i})/M{self.i}, \"\")',
+
+            # TODO: stock weight in sector
+            '',
+
+            # contribution to sector return ytd
+            f'=IFERROR(U{self.i}*V{self.i}), \"\")',
+
+            # Beta 1-Year
+            self.functioner.beta(
+                firstPos.ticker, dateAsOf=self.dateof, betaYr=1),
+
+            # Beta 3-Year
+            self.functioner.beta(
+                firstPos.ticker, dateAsOf=self.dateof, betaYr=3),
+
+            # Beta 5-Year
+            self.functioner.beta(
+                firstPos.ticker, dateAsOf=self.dateof, betaYr=5),
+
+            # ESG
+            self.functioner.esg(firstPos.ticker),
+        ]
+        self._row(sheet, row, self.i)
+
+        return None
+
+    def _total(self, sheet) -> None:
+        sheet[f'A{self.i}:B{self.i}'] = "TOTALS"
+
+        # Write column sums
+        self.__writeTotals(sheet, 'fhimopqtuvw', 4, self.i)
+
+        # Write other columns
+        # 1yr beta
+        sheet[f'X{self.i}'] = f'=sumproduct(v4:v{self.i-1}, x4:x{self.i-1})'
+
+        # 3yr beta
+        sheet[f'X{self.i}'] = f'=sumproduct(v4:v{self.i-1}, y4:y{self.i-1})'
+
+        # 5yr beta
+        sheet[f'X{self.i}'] = f'=sumproduct(v4:v{self.i-1}, z4:z{self.i-1})'
+
+        return None
+
+    def __writeTotals(self, sheet, cols, startRow, endRow) -> None:
+        for col in cols:
+            totalValue = f'=sum({col}{startRow}:{col}{endRow-1})'
+            sheet[f'{col}{endRow}'].value = totalValue
+
+        return None
+
+    def _row(self, sheet, vals: list, row: int) -> None:
+        for j in len(vals):
+            sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
+        self.i += 1
+
+        return None
+
+
+class realizedWriter():
+    def __init__(
+        self,
+        closed,
+        sheet,
+        functioner,
+        iLast,
+        dateof,
+        datefrom,
+    ):
+        self.closed = closed
+        self.sheet = sheet
+        self.functioner = functioner
+        self.i = iLast + 3  # row index
+        self.dateof = dateof
+        self.datefrom = datefrom
+
+    def Write(self):
+        pass
+
+    def _headers(self, sheet):
+        # Write meta-headers
+        asOf = f'Current Holdings as of: {self.dateof.strftime("%m-%d-%Y")}'
+        sheet[f'A{self.i}:B{self.i}'].value = asOf
+        sheet[f'F{self.i}:G{self.i}'].value = 'Beginning of Year'
+
+    def _data():
+        pass
+
+    def _total(self):
+        pass
+
+    def __writeTotals():
+        pass
+
+    def _row():
+        pass
+
+
 class PosWriter(object):
-    def __init__(self,
-                 port,
-                 funcsWanted='factset',
-                 endDate=dt.datetime.today(),
-                 startDate=dt.datetime.today() - dt.timedelta(days=365)):
-        self.rowIndex = 4
+    def __init__(
+            self,
+            port,
+            funcsWanted='factset',
+            endDate=dt.datetime.today(),
+            startDate=dt.datetime.today() - dt.timedelta(days=365)
+    ):
+        self.rowIndex = 0
         self.Functioner = xlFuncs.xlFunctionSelector(startDate, endDate,
                                                      funcsWanted)
         self.port = port
         self.endDate = endDate
         self.startDate = startDate
         self.realizedIndex = 4
+
+    def _writeRow(self, sheet, rowVals, i: int):
+        for j in len(rowVals):
+            sheet[f'{string.ascii_lowercase[j]}{i}'] = rowVals[j]
+
+    def currentHoldings(self, sheet):
+        """ Write data regarding current holdings to excel sheet."""
+        self._writeCurrentHeaders()
+        iStart = self.rowIndex
+        # TODO: write current holdings to sheet
+        self._writeCurrent()
+        i = self.rowIndex
+
+        # Write Totals
+        sheet[f'A{i}:B{i}'] = "TOTALS"
+
+        # Cost basis total
+        self.__writeTotalRow(sheet, 'f', iStart, i)
+
+        # Current market value
+        self.__writeTotalRow(sheet, 'h', iStart, i)
+
+        # current hpr ($)
+        self.__writeTotalRow(sheet, 'i', iStart, i)
+
+        # beginning of period market value
+        self.__writeTotalRow(sheet, 'm', iStart, i)
+
+        # divs paid ytd
+        self.__writeTotalRow(sheet, 'o', iStart, i)
+
+        # total divs collected ytd
+        self.__writeTotalRow(sheet, 'p', iStart, i)
+
+        # TODO: most recent div pmt
+
+        # ytd ($)
+        self.__writeTotalRow(sheet, 't', iStart, i)
+
+        # ytd tr %
+        self.__writeTotalRow(sheet, 'u', iStart, i)
+
+        # stock weight in sector
+        self.__writeTotalRow(sheet, 'v', iStart, i)
+
+        # contrib. to sector return ytd
+        self.__writeTotalRow(sheet, 'w', iStart, i)
+
+        # 1yr beta
+        sheet[f'X{i}'] = f'=sumproduct(v{iStart}:v{i-1}, x{iStart}:x{i-1})'
+
+        # 3yr beta
+        sheet[f'X{i}'] = f'=sumproduct(v{iStart}:v{i-1}, y{iStart}:y{i-1})'
+
+        # 5yr beta
+        sheet[f'X{i}'] = f'=sumproduct(v{iStart}:v{i-1}, z{iStart}:z{i-1})'
+
+    def __writeTotalRow(self, sheet, col, startRow, endRow):
+        sheet[f'{col}{i}'] = f'=sum({col}{startRow}:{col}{endRow-1})'
 
     def make(self):
         templatePath = os.path.abspath('data_files/template.xlsx')

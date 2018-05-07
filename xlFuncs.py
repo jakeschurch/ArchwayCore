@@ -3,7 +3,7 @@
 import datetime as dt
 
 
-class xlFunctionSelector(object):
+class xlFunctionSelector():
     today = dt.date.today()
     fiscalYearEnd = dt.date(year=today.year - 1, month=12, day=31)
     oneYearAgo = today - dt.timedelta(days=365)
@@ -11,7 +11,12 @@ class xlFunctionSelector(object):
     bbDateFormat = '%Y%m%d'
     factsetDateFormat = '%m/%d/%Y'
 
-    def __init__(self, startDate, endDate, funcsWanted='factset'):
+    def __init__(
+        self,
+        startDate,
+        endDate,
+        funcsWanted='factset'
+    ):
         self.funcsWanted = funcsWanted
         self.startDate = startDate
         self.endDate = endDate
@@ -64,10 +69,10 @@ class xlFunctionSelector(object):
             return self._abstractBloombergFunc(
                 ticker, "PX_LAST", hist=True, params=params)
 
-    def beta(self, ticker, dateAsOf=today):
+    def beta(self, ticker, dateAsOf=today, betaYr=3):
         if self.funcsWanted == 'factset':
             return self._abstractFactsetFunc(
-                ticker, f"P_BETA_PR({dateAsOf},,,\"\"3YR\"\")")
+                ticker, f"P_BETA_PR({dateAsOf},,,\"\"{betaYr}YR\"\")")
         else:
             # REVIEW: does this have to be same date?
             params = '\"BETA_RAW_OVERRIDEABLE\", \"BETA_OVERRIDE_START_DT\", '
