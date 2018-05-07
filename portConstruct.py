@@ -198,7 +198,8 @@ class Position(object):
 
 
 class currentWriter():
-    """currentWriter writes data about current positions to excel worksheet."""
+    """currentWriter writes data about current positions
+        to an excel worksheet."""
 
     def __init__(
         self,
@@ -487,7 +488,129 @@ class realizedWriter():
         return None
 
 
-class PosWriter(object):
+class alphaWriter():
+    def __init__(
+        self,
+        currentEndRow,
+        realizedEndRow,
+    ):
+        self.iCurrent = currentEndRow
+        self.iRealized = realizedEndRow
+        self.i = realizedEndRow + 4
+
+    def Write(self, sheet: "Worksheet"):
+        self._headers(sheet)
+        self._data(sheet)
+        self._totals(sheet)
+
+        return None
+
+    def _headers(self, sheet) -> None:
+        # Write meta-headers
+        sheet[f'A{self.i}:B{self.i}'] = 'Year to Date Alpha'
+        sheet[f'C{self.i}:G{self.i}'] = 'Beginning of Period/Purchase'
+        sheet[f'F{self.i}:G{self.i}'] = 'Current Value/Sale'
+        self.i += 1
+
+        headers = [
+            'Ticker',
+            'Security Name',
+            'Realized',
+            'Market Value',
+            'Weight',
+            'Market Value',
+            'Weight',
+            'YTD ($) w/ Dividends',
+            'YTD (%) w/ Dividends',
+            'Weighted Contribution to Return',
+            '',
+            'YTD', 'Benchmark', 'Alpha',
+        ]
+        self._row(sheet, headers)
+
+        return None
+
+    def _data(self, sheet) -> None:
+        # Write Current Data
+        currentStart = 4
+        for i in range(currentStart, self.iCurrent):
+            self._row(
+                sheet,
+                [
+                    f'=A{i}',
+                    f'=B{i}',
+                    '',
+                    f'=M{i}',
+                    # TODO: beginning weight
+                    '',
+                    f'=H{i}',
+                    # TODO:  current market weight
+                    '',
+                    f'=T{i}',
+                    f'=H{self.i}/D{self.i}',
+                    f'=G{self.i}/I{self.i}',
+                ]
+            )
+
+        # Write realized data
+        realizedStart = self.iCurrent + 6
+        for i in range(realizedStart, self.iRealized):
+            self._row(
+                sheet,
+                [
+                    f'=A{i}',
+                    f'=B{i}',
+                    '',
+                    f'=M{i}',
+                    # TODO: beginning weight
+                    '',
+                    f'=H{i}',
+                    # TODO:  current market weight
+                    '',
+                    f'=T{i}',
+                    f'=H{self.i}/D{self.i}',
+                    f'=G{self.i}/I{self.i}',
+                ]
+            )
+
+        return None
+
+    def _total(self, sheet) -> None:
+        alphaStart = self.iRealized + 6
+
+        # Write total row.
+        sheet[f'A{self.i}'].value = 'TOTALS'
+        self._row(
+            sheet,
+            [
+                '',
+                '',
+                '',
+                f'=sum(D{alphaStart}:D{self.i-1})',
+                f'=sum(E{alphaStart}:E{self.i-1})',
+                f'=sum(F{alphaStart}:F{self.i-1})',
+                f'=sum(G{alphaStart}:G{self.i-1})',
+                f'=sum(H{alphaStart}:H{self.i-1})',
+                f'=H{self.i}/D{self.i}',
+            ]
+        )
+        # Write relative return data
+        sheet[f'L{alphaStart}'].value = f'J{self.i-1}'
+        # TODO: relative return against benchmark
+        sheet[f'M{alphaStart}'].value = 'TODO:'
+        sheet[f'N{alphaStart}'].value = f'L{alphaStart}-M{alphaStart}'
+
+        return None
+
+    def _row(self, sheet: 'Worksheet', vals: list):
+        for j in len(vals):
+            sheet[f'{string.ascii_lowercase[j]}{self.i}'].value = vals[j]
+        self.i += 1
+
+        return None
+
+
+class ExcelWriter(object):
     def __init__(
             self,
             port,
@@ -503,64 +626,26 @@ class PosWriter(object):
         self.startDate = startDate
         self.realizedIndex = 4
 
-    def _writeRow(self, sheet, rowVals, i: int):
-        for j in len(rowVals):
-            sheet[f'{string.ascii_lowercase[j]}{i}'] = rowVals[j]
+    def Write(self):
+        templatePath = os.path.abspath('data_files/template.xlsx')
+        wb = openpyxl.load_workbook(templatePath)
+        currentSheet = wb.copy_worksheet(wb['Sheet1'])
 
-    def currentHoldings(self, sheet):
-        """ Write data regarding current holdings to excel sheet."""
-        self._writeCurrentHeaders()
-        iStart = self.rowIndex
-        # TODO: write current holdings to sheet
-        self._writeCurrent()
-        i = self.rowIndex
+        # Write Current Holding Data
+        current = currentWriter(
+            self.port, currentSheet, self.Functioner,
+            self.startDate, self.endDate
+        )
+        iCurrentEnd = current.Write(currentSheet)
 
-        # Write Totals
-        sheet[f'A{i}:B{i}'] = "TOTALS"
+        # Write Realized Holding Data
+        realizedSheet = wb.copy_worksheet(wb['Sheet1'])
 
-        # Cost basis total
-        self.__writeTotalRow(sheet, 'f', iStart, i)
-
-        # Current market value
-        self.__writeTotalRow(sheet, 'h', iStart, i)
-
-        # current hpr ($)
-        self.__writeTotalRow(sheet, 'i', iStart, i)
-
-        # beginning of period market value
-        self.__writeTotalRow(sheet, 'm', iStart, i)
-
-        # divs paid ytd
-        self.__writeTotalRow(sheet, 'o', iStart, i)
-
-        # total divs collected ytd
-        self.__writeTotalRow(sheet, 'p', iStart, i)
-
-        # TODO: most recent div pmt
-
-        # ytd ($)
-        self.__writeTotalRow(sheet, 't', iStart, i)
-
-        # ytd tr %
-        self.__writeTotalRow(sheet, 'u', iStart, i)
-
-        # stock weight in sector
-        self.__writeTotalRow(sheet, 'v', iStart, i)
-
-        # contrib. to sector return ytd
-        self.__writeTotalRow(sheet, 'w', iStart, i)
-
-        # 1yr beta
-        sheet[f'X{i}'] = f'=sumproduct(v{iStart}:v{i-1}, x{iStart}:x{i-1})'
-
-        # 3yr beta
-        sheet[f'X{i}'] = f'=sumproduct(v{iStart}:v{i-1}, y{iStart}:y{i-1})'
-
-        # 5yr beta
-        sheet[f'X{i}'] = f'=sumproduct(v{iStart}:v{i-1}, z{iStart}:z{i-1})'
-
-    def __writeTotalRow(self, sheet, col, startRow, endRow):
-        sheet[f'{col}{i}'] = f'=sum({col}{startRow}:{col}{endRow-1})'
+        realized = realizedWriter(
+            self.port.closed, self.functioner,
+            iCurrentEnd, self.dateof, self.datefrom,
+        )
+        iRealizedEnd = realized.Write(realizedSheet)
 
     def make(self):
         templatePath = os.path.abspath('data_files/template.xlsx')
