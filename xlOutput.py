@@ -14,6 +14,7 @@
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
 import re
 
 
@@ -21,43 +22,43 @@ def mapKeys(mapInp, *inp):
     out = []
     for key in inp:
         if key in mapInp:
-            if key != '*':
+            if key != u'*':
                 out.append(mapInp[key])
             else:
-                return mapKeys(mapInp, *[str(i) for i in range(0, 11)])
+                return mapKeys(mapInp, *[unicode(i) for i in xrange(0, 11)])
         else:
             if len(key) > 2:
                 raise ValueError(
-                    'Please re-enter sector values in a valid format.')
+                    u'Please re-enter sector values in a valid format.')
             else:
-                print(f'Passed value is invalid: \'{key}\'. Ignoring.')
+                print f'Passed value is invalid: \'{key}\'. Ignoring.'
     return set(out)
 
 
 def askForSectors():
     sectors = {
-        '*': 'All',
-        '0': 'Consumer Discretionary',
-        '1': 'Consumer Staples',
-        '2': 'Energy',
-        '3': 'Financials',
-        '4': 'Healthcare',
-        '5': 'Industrials',
-        '6': 'Materials',
-        '7': 'Real Estate',
-        '8': 'Technology',
-        '9': 'Telecom',
-        '10': 'Utilities'
+        u'*': u'All',
+        u'0': u'Consumer Discretionary',
+        u'1': u'Consumer Staples',
+        u'2': u'Energy',
+        u'3': u'Financials',
+        u'4': u'Healthcare',
+        u'5': u'Industrials',
+        u'6': u'Materials',
+        u'7': u'Real Estate',
+        u'8': u'Technology',
+        u'9': u'Telecom',
+        u'10': u'Utilities'
     }
     # promptString = 'Please enter a comma or space-seperated list of desired sector values:\n\n'
     # for key, val in sectors.items():
     #     promptString += f'\t{key}:\t{val}\n'
     # promptSectors = input(promptString)
 
-    promptSectors = '* ,     0 , 1  a  1 1 1  1'
-    promptSectors = re.sub('[\s,]+', ' ', promptSectors)
-    desiredSectors = promptSectors.split(' ')
+    promptSectors = u'* ,     0 , 1  a  1 1 1  1'
+    promptSectors = re.sub(u'[\s,]+', u' ', promptSectors)
+    desiredSectors = promptSectors.split(u' ')
 
-    print(mapKeys(sectors, *desiredSectors))
-    if '*' in promptSectors:
-        print(True)
+    print mapKeys(sectors, *desiredSectors)
+    if u'*' in promptSectors:
+        print True

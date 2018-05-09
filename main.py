@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright 2018 Jake Schurch
@@ -15,35 +15,248 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import portConstruct as pt
+# import portConstruct as pt
+from __future__ import absolute_import
 import datetime as dt
-import tkinter as tk
-from tkinter import filedialog, messagebox
+import portConstruct as pt
+import gi
+gi.require_version(u'Gtk', u'3.0')
+from gi.repository import Gtk
 
 
-class AppFrame(tk.Frame):
-    def __init__(self):
-        tk.Frame.__init__(self)
-        pass
-        # TODO:
+today = dt.datetime.today()
+
+
+class Handler(object):
+
+    @staticmethod
+    def sendError(builder, errMsg):
+        err_dialogue = builder.get_object(u'error_dialogue')
+        err_dialogue.format_secondary_text(errMsg)
+
+        err_dialogue.show()
+
+        response = err_dialogue.run()
+        if response != u'':
+            err_dialogue.hide()
+
+    @staticmethod
+    def setup(builder):
+        endDate = builder.get_object(u'entry_enddate')
+        endDate.set_text(
+            today.strftime(u'%m/%d/%Y')
+        )
+
+    @staticmethod
+    def checkSectors(builder):
+        sectorsWanted = []
+        if builder.get_object(u'checkbtn_all').get_active():
+            sectorsWanted.append(u'all')
+            return
+
+        if builder.get_object(u'checkbtn_telecom').get_active():
+            sectorsWanted.append(u'Telecom')
+
+        if builder.get_object(u'checkbtn_realestate').get_active():
+            sectorsWanted.append(u'Real Estate')
+
+        if builder.get_object(u'checkbtn_industrials').get_active():
+            sectorsWanted.append(u'Industrials')
+
+        if builder.get_object(u'checkbtn_financials').get_active():
+            sectorsWanted.append(u'Financials')
+
+        if builder.get_object(u'checkbtn_staples').get_active():
+            sectorsWanted.append(u'Consumer Staples')
+
+        if builder.get_object(u'checkbtn_utilites').get_active():
+            sectorsWanted.append(u'Utilites')
+
+        if builder.get_object(u'checkbtn_tech').get_active():
+            sectorsWanted.append(u'Tech')
+
+        if builder.get_object(u'checkbtn_materials').get_active():
+            sectorsWanted.append(u'Materials')
+
+        if builder.get_object(u'checkbtn_healthcare').get_active():
+            sectorsWanted.append(u'Health Care')
+
+        if builder.get_object(u'checkbtn_energy').get_active():
+            sectorsWanted.append(u'Energy')
+
+        if builder.get_object(u'checkbtn_discretionary').get_active():
+            sectorsWanted.append(u'Consumer Discretionary')
+
+        return sectorsWanted
+
+    @staticmethod
+    def getData(builder):
+        wordsOfEncouragement = u'Please try again.'
+
+        txLogFile = builder.get_object(u'transactionLog_txtbox').get_text()
+
+        if txLogFile == u'':
+            errMsg = u'Location of Tx log file given is invalid. '
+            Handler().sendError(builder, errMsg + wordsOfEncouragement)
+            return
+
+        if builder.get_object(u'radiobutton_factset').get_active():
+            functype = u'factset'
+        else:
+            functype = u'bloomberg'
+
+        outputFolder = builder.get_object(u'outputFolder_txtbox').get_text()
+        if outputFolder == u'':
+            errMsg = u'Location of output file destination given is invalid. '
+            Handler().sendError(builder, errMsg + wordsOfEncouragement)
+            return
+
+        if builder.get_object(u'switch_sectorholdings').get_active():
+            getSectorHoldings = True
+            sectorsWanted = Handler().checkSectors(builder)
+
+            if sectorsWanted == []:
+                errMsg = u'No sectors were selected. '
+                Handler().sendError(builder, errMsg + wordsOfEncouragement)
+                return
+        else:
+            getSectorHoldings = False
+            sectorsWanted = None
+
+        if builder.get_object(u'switch_transactionlog').get_active():
+            getTxLog = True
+        else:
+            getTxLog = False
+
+        return {
+            u'getSectorHoldings': getSectorHoldings,
+            u'getTxLog': getTxLog,
+            u'fileLoc': txLogFile,
+            u'outputLoc': outputFolder,
+            u'funcType': functype,
+            u'startDate': builder.get_object(u'entry_startdate').get_text(),
+            u'endDate': builder.get_object(u'entry_enddate').get_text(),
+            u'sectorsWanted': sectorsWanted,
+        }
+
+    def on_main_window_Destroy(self, *args):
+        Gtk.main_quit()
+
+    def on_button_run_clicked(self, button):
+        global builder
+        userInputs = Handler().getData(builder)
+        run(**userInputs)
+
+    def on_file_chooser_button_file_set(self, button):
+        set_file = button.get_filename()
+        txLogBox = builder.get_object(u'transactionLog_txtbox')
+        txLogBox.set_text(set_file)
+
+    def on_folder_chooser_button_file_set(self, button):
+        set_folder = button.get_filename()
+        outputFolderBox = builder.get_object(u'outputFolder_txtbox')
+        outputFolderBox.set_text(set_folder)
+
+    def on_checkbtn_all_toggled(self, button):
+        if button.get_active():
+            builder.get_object(u'checkbtn_telecom').set_active(True)
+            builder.get_object(u'checkbtn_realestate').set_active(True)
+            builder.get_object(u'checkbtn_industrials').set_active(True)
+            builder.get_object(u'checkbtn_financials').set_active(True)
+            builder.get_object(u'checkbtn_staples').set_active(True)
+            builder.get_object(u'checkbtn_utilites').set_active(True)
+            builder.get_object(u'checkbtn_tech').set_active(True)
+            builder.get_object(u'checkbtn_materials').set_active(True)
+            builder.get_object(u'checkbtn_healthcare').set_active(True)
+            builder.get_object(u'checkbtn_energy').set_active(True)
+            builder.get_object(u'checkbtn_discretionary').set_active(True)
+        else:
+            builder.get_object(u'checkbtn_telecom').set_active(False)
+            builder.get_object(u'checkbtn_realestate').set_active(False)
+            builder.get_object(u'checkbtn_industrials').set_active(False)
+            builder.get_object(u'checkbtn_financials').set_active(False)
+            builder.get_object(u'checkbtn_staples').set_active(False)
+            builder.get_object(u'checkbtn_utilites').set_active(False)
+            builder.get_object(u'checkbtn_tech').set_active(False)
+            builder.get_object(u'checkbtn_materials').set_active(False)
+            builder.get_object(u'checkbtn_healthcare').set_active(False)
+            builder.get_object(u'checkbtn_energy').set_active(False)
+            builder.get_object(u'checkbtn_discretionary').set_active(False)
+
+
+builder = Gtk.Builder()
 
 
 def main():
+
+    builder.add_from_file(u"gui.glade")
+    builder.connect_signals(Handler())
+
+    global window
+    window = builder.get_object(u"main_window")
+    window.show()
+    Handler().setup(builder)
+    Gtk.main()
+
+
+def parseDates(startDate, endDate):
+    # Should be in format 'MONTH/DAY/4-Digit Year'
+    splitStart = startDate.split(u'/')
+
+    try:
+        parsedStart = dt.datetime(
+            year=int(splitStart[2]),
+            month=int(splitStart[0]),
+            day=int(splitStart[1])
+        )
+    except:
+        Handler().sendError(
+            builder, 'Start Date is not in `mm-dd-yyy` format.'
+        )
+
+    splitEnd = endDate.split(u'/')
+    try:
+        parsedEnd = dt.datetime(
+            year=int(splitEnd[2]),
+            month=int(splitEnd[0]),
+            day=int(splitEnd[1])
+        )
+    except:
+        Handler().sendError(
+            builder, 'End Date is not in `mm-dd-yyy` format.'
+        )
+
+    return parsedStart, parsedEnd
+
+
+def run(
+    getSectorHoldings,
+    getTxLog,
+    fileLoc,
+    ouputLoc,
+    funcType,
+    startDate,
+    endDate,
+    sectorsWanted
+):
+
+    startDate, endDate = parseDates(startDate, endDate)
+
     portBuilder = pt.PortfolioBuilder()
-    today = dt.datetime.today()
-    # TEMP:
+
     fiscalYearEnd = dt.datetime(year=today.year - 4, month=12, day=31)
 
+    fileLoc = fileLoc.encode(u'string-escape')
     portBuilder.loadTransactions(
-        r'/home/jake/Desktop/Attribution.csv', 0, fiscalYearEnd, today
+        fileLoc, 0, startDate, endDate
     )
 
     xlWriter = pt.ExcelWriter(
         portBuilder,
-        ['*'],
-        'factset', endDate=today, startDate=fiscalYearEnd)
+        [u'*'],
+        funcType, endDate=endDate, startDate=fiscalYearEnd)
     xlWriter.Write()
 
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     main()

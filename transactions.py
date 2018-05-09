@@ -1,11 +1,13 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
+# -*- coding: future_fstrings -*-
 
+from __future__ import absolute_import
 import openpyxl
 import os
 
 
 class TransactionError(Exception):
+
     def __init__(self, ticker, qty, negAmt=None):
         self.ticker = ticker
         self.qty = qty
@@ -15,49 +17,50 @@ class TransactionError(Exception):
         if self.negAmt is not None:
             errStr = (f'Transacting {self.ticker} for {self.qty} shares '
                       f'creates a negative cash balance of {self.negAmt}. '
-                      'Please amend your transaction log.')
+                      u'Please amend your transaction log.')
         else:
             errStr = (f'Cannot sell shares of {self.ticker} '
-                      'because none have been recorded as of yet in the '
-                      'transaction log. Please amend your transaction log.')
+                      u'because none have been recorded as of yet in the '
+                      u'transaction log. Please amend your transaction log.')
         return repr(errStr)
 
 
 class Transaction(object):
+
     def __init__(self, **kwargs):
-        self.ticker = kwargs['ticker']
-        self.qty = kwargs['qty']
-        self.price = kwargs['price']
-        self.fees = kwargs['fees']
-        self.sector = kwargs['sector']
-        self.action = kwargs['action']
-        self.datetime = kwargs['datetime']
+        self.ticker = kwargs[u'ticker']
+        self.qty = float(kwargs[u'qty'])
+        self.price = float(kwargs[u'price'].strip('$'))
+        self.fees = float(kwargs[u'fees'])
+        self.sector = kwargs[u'sector']
+        self.action = kwargs[u'action']
+        self.datetime = kwargs[u'datetime']
 
-    def exportToPos(self) -> dict:
+    def exportToPos(self):
         return {
-            'ticker': self.ticker,
-            'qty': self.qty,
-            'costBasis': self.price,
-            'sector': self.sector,
-            'buyDate': self.datetime,
-            'sellDate': None,
-            'costSold': None,
-            'dateSold': None
+            u'ticker': self.ticker,
+            u'qty': self.qty,
+            u'costBasis': self.price,
+            u'sector': self.sector,
+            u'buyDate': self.datetime,
+            u'sellDate': None,
+            u'costSold': None,
+            u'dateSold': None
         }
 
-    def exportToClosed(self) -> dict:
+    def exportToClosed(self):
         return {
-            'ticker': self.ticker,
-            'qty': self.qty,
-            'costSold': self.price,
-            'sector': self.sector,
-            'sellDate': self.datetime,
-            'costBasis': None,
-            'buyDate': None,
+            u'ticker': self.ticker,
+            u'qty': self.qty,
+            u'costSold': self.price,
+            u'sector': self.sector,
+            u'sellDate': self.datetime,
+            u'costBasis': None,
+            u'buyDate': None,
         }
 
-    def __str__(self) -> str:
-        print(self.__dict__)
+    def __str__(self):
+        print self.__dict__
 
 
 def GetTx(txFile):
@@ -68,46 +71,46 @@ def GetTx(txFile):
     return allTx
 
 
-def GetCashTx(txList: list) -> list:
+def GetCashTx(txList):
     cashTx = []
     for tx in txList:
         amt = tx.qty * tx.price
-        if tx.Ticker != "FDRXX" and amt != 0:
+        if tx.Ticker != u"FDRXX" and amt != 0:
             txDetails = {
-                "ticker": "FDRXX",
-                "qty": amt,
-                "price": 1.00,
-                "fees": None,
-                "action": "Buy" if "sell" in tx.action.lower() else "Sell",
-                "datetime": tx.datetime
+                u"ticker": u"FDRXX",
+                u"qty": amt,
+                u"price": 1.00,
+                u"fees": None,
+                u"action": u"Buy" if u"sell" in tx.action.lower() else u"Sell",
+                u"datetime": tx.datetime
             }
             cashTx.append(Transaction(**txDetails))
     return cashTx
 
 
-def LoadTx(df: "dataframe", startRow=0) -> list:
+def LoadTx(df, startRow=0):
     txList = []
     for _, row in df.iterrows():
-        rowPrice = row.loc['Sale Price/Share']
-        if type(rowPrice) is str:
-            rowPrice = float(rowPrice.replace('$', ''))
+        rowPrice = row.loc[u'Sale Price/Share']
+        if type(rowPrice) is unicode:
+            rowPrice = float(rowPrice.replace(u'$', u''))
 
-        rowShares = row.loc['Number of Shares']
-        if type(rowShares) is str:
-            rowShares = float(rowShares.replace(',', ''))
+        rowShares = row.loc[u'Number of Shares']
+        if type(rowShares) is unicode:
+            rowShares = float(rowShares.replace(u',', u''))
 
-        rowFees = row.loc['Fees']
-        if type(rowFees) is str:
-            rowFees = float(rowFees.replace('$', ''))
+        rowFees = row.loc[u'Fees']
+        if type(rowFees) is unicode:
+            rowFees = float(rowFees.replace(u'$', u''))
 
         kwargs = {
-            'action': row.loc['Action'],
-            'datetime': row.loc['Date Of Transaction'].to_pydatetime(),
-            'ticker': row.loc['Ticker'],
-            'sector': row.loc['Sector'],
-            'qty': rowShares,
-            'price': rowPrice,
-            'fees': rowFees
+            u'action': row.loc[u'Action'],
+            u'datetime': row.loc[u'Date Of Transaction'].to_pydatetime(),
+            u'ticker': row.loc[u'Ticker'],
+            u'sector': row.loc[u'Sector'],
+            u'qty': rowShares,
+            u'price': rowPrice,
+            u'fees': rowFees
         }
         txList.append(Transaction(**kwargs))
     return txList
@@ -115,21 +118,21 @@ def LoadTx(df: "dataframe", startRow=0) -> list:
 
 def OutputTx(fileName, txList):
     wb = openpyxl.load_workbook(
-        os.path.abspath('data_files/template.xlsx')
+        os.path.abspath(u'data_files/template.xlsx')
     )
-    ws = wb.copy_worksheet(wb['transactions'])
+    ws = wb.copy_worksheet(wb[u'transactions'])
 
     i = 1
     for tx in txList:
-        ws['a{0}'.format(i)] = tx.action
-        ws['b{0}'.format(i)] = tx.ticker
-        ws['c{0}'.format(i)] = tx.qty
-        ws['d{0}'.format(i)] = tx.price
-        ws['e{0}'.format(i)] = tx.fees
-        ws['f{0}'.format(i)] = tx.sector
-        ws['g{0}'.format(i)] = tx.datetime
+        ws[u'a{0}'.format(i)] = tx.action
+        ws[u'b{0}'.format(i)] = tx.ticker
+        ws[u'c{0}'.format(i)] = tx.qty
+        ws[u'd{0}'.format(i)] = tx.price
+        ws[u'e{0}'.format(i)] = tx.fees
+        ws[u'f{0}'.format(i)] = tx.sector
+        ws[u'g{0}'.format(i)] = tx.datetime
     i += 1
 
 
-if __name__ == "__main__":
+if __name__ == u"__main__":
     LoadTx(None, 0)
