@@ -652,6 +652,7 @@ class alphaWriter(object):
 
 
 class ExcelWriter(object):
+    outputDateFmt = '%Y%m%d'
 
     def __init__(
             self,
@@ -671,7 +672,7 @@ class ExcelWriter(object):
         self.startDate = startDate
         self.realizedIndex = 4
 
-    def Write(self, outputPath):
+    def WriteHoldings(self, outputPath):
         templatePath = os.path.abspath(u'data_files/template.xlsx')
         wb = openpyxl.load_workbook(templatePath)
 
@@ -699,9 +700,18 @@ class ExcelWriter(object):
             )
             alpha.Write(sectorSheet)
 
-        wb.remove_sheet(
-            wb.get_sheet_by_name('Sheet1')
+        wb.remove(
+            wb['Sheet1']
         )
+        
+        # Save Holdings File to output path.
+        holdingsPath = u'{0}/{1}'.format(
+            outputPath, u'aif_holdings_{0}_{1}.xlsx'.format(
+                self.startDate.strftime(self.outputDateFmt),
+                self.endDate.strftime(self.outputDateFmt)
+            )
+        )
+        print(holdingsPath)
+        wb.save(holdingsPath)
 
-        wb.save(u'portOutput.xlsx')
-        # TODO: option to specify output path
+        return str(holdingsPath), None

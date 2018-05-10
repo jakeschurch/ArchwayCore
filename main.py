@@ -4,6 +4,9 @@ from __future__ import absolute_import
 import portConstruct as pt
 import transactions as Tx
 import datetime as dt
+import os
+import subprocess
+import platform
 import gi
 gi.require_version(u'Gtk', u'3.0')
 from gi.repository import Gtk
@@ -47,11 +50,34 @@ class Handler(object):
         )
 
     @staticmethod
+    def openFile(filename):
+        print(type(filename))
+        print(filename)
+        if platform.system() == "Windows":
+            os.startfile(filename)
+        elif platform.system() == "Darwin":
+            subprocess.Popen(["open", filename])
+        else:
+            subprocess.Popen(["xdg-open", filename])
+
+    @staticmethod
+    def sendFinished(builder, holdingsFile=None, txLogFile=None):
+        finished_dialog = builder.get_object(u'finished_dialog')
+        finished_dialog.show()
+
+        response = finished_dialog.run()
+
+        if response == Gtk.ResponseType.YES:
+            if holdingsFile is not None:
+                Handler().openFile(holdingsFile)
+
+        Gtk.main_quit()
+
+    @staticmethod
     def checkSectors(builder):
         sectorsWanted = []
         if builder.get_object(u'checkbtn_all').get_active():
             sectorsWanted.append(u'All')
-            return
 
         if builder.get_object(u'checkbtn_telecom').get_active():
             sectorsWanted.append(u'Telecom')
@@ -265,9 +291,11 @@ def run(
 
         xlWriter = pt.ExcelWriter(
             portBuilder,
-            [u'*'],
+            sectorsWanted,
             funcType, endDate=endDate, startDate=fiscalYearEnd)
-        xlWriter.Write()
+        holdingsFile, txLogFile = xlWriter.WriteHoldings(outputLoc)
+
+        Handler().sendFinished(builder, holdingsFile, txLogFile)
 
 
 if __name__ == u'__main__':
