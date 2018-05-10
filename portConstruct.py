@@ -24,7 +24,6 @@ import numpy as np
 import pandas as pd
 import xlFuncs
 import os
-import string
 
 
 def readCSV(fileLoc, startRow=0):
@@ -66,13 +65,11 @@ class PortfolioBuilder(object):
                 print f'\t\t{tx.__dict__}'
 
     def loadTransactions(
-            self, fileLoc, startRow, startDate, endDate):
-        allTx = Tx.LoadTx(
-            readCSV(fileLoc, startRow)
-        )
-        for tx in allTx:
-            if tx.datetime >= startDate and tx.datetime <= endDate:
-                self.executeTx(tx)
+            self, transactions
+            ):
+       
+        for tx in transactions:
+            self.executeTx(tx)
 
     def executeTx(self, tx):
         if u'buy' in tx.action.lower():
@@ -171,7 +168,7 @@ class PortfolioBuilder(object):
 
         return pos
 
-    def getBySector(self, sector = None):
+    def getBySector(self, sector=None):
         openPositions = []
         for k, _ in self.activePos.items():
             if k != []:
@@ -377,7 +374,7 @@ class currentWriter(object):
 
             # Total Dividends Collected YTD
             u'=' + u'+'.join([self.functioner.dividends(pos)
-                            for pos in posList]),
+                             for pos in posList]),
 
             # TODO:  Most Recent Dividend Payment
             u'',
@@ -655,32 +652,16 @@ class alphaWriter(object):
 
 
 class ExcelWriter(object):
-    sectorMap = {
-        u'*': u'All',
-        u'0': u'Consumer Discretionary',
-        u'1': u'Consumer Staples',
-        u'2': u'Energy',
-        u'3': u'Financials',
-        u'4': u'Healthcare',
-        u'5': u'Industrials',
-        u'6': u'Materials',
-        u'7': u'Real Estate',
-        u'8': u'Technology',
-        u'9': u'Telecom',
-        u'10': u'Utilities'
-    }
 
     def __init__(
             self,
             port,
-            sectorsWanted=[u'*'],
+            sectorsWanted=[u'All'],
             funcsWanted=u'factset',
             endDate=dt.datetime.today(),
             startDate=dt.datetime.today() - dt.timedelta(days=365)
     ):
-        self.sectors = []
-        for Id in sectorsWanted:
-            self.sectors.append(self.sectorMap[Id])
+        self.sectors = sectorsWanted
 
         self.rowIndex = 0
         self.Functioner = xlFuncs.xlFunctionSelector(startDate, endDate,
@@ -690,7 +671,7 @@ class ExcelWriter(object):
         self.startDate = startDate
         self.realizedIndex = 4
 
-    def Write(self):
+    def Write(self, outputPath):
         templatePath = os.path.abspath(u'data_files/template.xlsx')
         wb = openpyxl.load_workbook(templatePath)
 
@@ -717,6 +698,10 @@ class ExcelWriter(object):
                 iCurrentEnd, iRealizedEnd,
             )
             alpha.Write(sectorSheet)
+
+        wb.remove_sheet(
+            wb.get_sheet_by_name('Sheet1')
+        )
 
         wb.save(u'portOutput.xlsx')
         # TODO: option to specify output path

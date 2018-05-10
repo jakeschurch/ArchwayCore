@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
+import portConstruct as pt
+import transactions as Tx
+import datetime as dt
+import gi
+gi.require_version(u'Gtk', u'3.0')
+from gi.repository import Gtk
 
 # Copyright 2018 Jake Schurch
 #
@@ -14,14 +21,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# import portConstruct as pt
-from __future__ import absolute_import
-import datetime as dt
-import portConstruct as pt
-import gi
-gi.require_version(u'Gtk', u'3.0')
-from gi.repository import Gtk
 
 
 today = dt.datetime.today()
@@ -51,7 +50,7 @@ class Handler(object):
     def checkSectors(builder):
         sectorsWanted = []
         if builder.get_object(u'checkbtn_all').get_active():
-            sectorsWanted.append(u'all')
+            sectorsWanted.append(u'All')
             return
 
         if builder.get_object(u'checkbtn_telecom').get_active():
@@ -73,7 +72,7 @@ class Handler(object):
             sectorsWanted.append(u'Utilites')
 
         if builder.get_object(u'checkbtn_tech').get_active():
-            sectorsWanted.append(u'Tech')
+            sectorsWanted.append(u'Technology')
 
         if builder.get_object(u'checkbtn_materials').get_active():
             sectorsWanted.append(u'Materials')
@@ -105,8 +104,8 @@ class Handler(object):
         else:
             functype = u'bloomberg'
 
-        outputFolder = builder.get_object(u'outputFolder_txtbox').get_text()
-        if outputFolder == u'':
+        outputLoc = builder.get_object(u'outputFolder_txtbox').get_text()
+        if outputLoc == u'':
             errMsg = u'Location of output file destination given is invalid. '
             Handler().sendError(builder, errMsg + wordsOfEncouragement)
             return
@@ -132,7 +131,7 @@ class Handler(object):
             u'getSectorHoldings': getSectorHoldings,
             u'getTxLog': getTxLog,
             u'fileLoc': txLogFile,
-            u'outputLoc': outputFolder,
+            u'outputLoc': outputLoc,
             u'funcType': functype,
             u'startDate': builder.get_object(u'entry_startdate').get_text(),
             u'endDate': builder.get_object(u'entry_enddate').get_text(),
@@ -145,7 +144,17 @@ class Handler(object):
     def on_button_run_clicked(self, button):
         global builder
         userInputs = Handler().getData(builder)
-        run(**userInputs)
+        print(userInputs)
+        run(
+            getSectorHoldings=userInputs[u'getSectorHoldings'],
+            getTxLog=userInputs[u'getTxLog'],
+            fileLoc=userInputs[u'fileLoc'],
+            outputLoc=userInputs[u'outputLoc'],
+            funcType=userInputs[u'funcType'],
+            startDate=userInputs[u'startDate'],
+            endDate=userInputs[u'endDate'],
+            sectorsWanted=userInputs[u'sectorsWanted']
+        )
 
     def on_file_chooser_button_file_set(self, button):
         set_file = button.get_filename()
@@ -233,7 +242,7 @@ def run(
     getSectorHoldings,
     getTxLog,
     fileLoc,
-    ouputLoc,
+    outputLoc,
     funcType,
     startDate,
     endDate,
@@ -241,21 +250,24 @@ def run(
 ):
 
     startDate, endDate = parseDates(startDate, endDate)
-
-    portBuilder = pt.PortfolioBuilder()
-
     fiscalYearEnd = dt.datetime(year=today.year - 4, month=12, day=31)
 
     fileLoc = fileLoc.encode(u'string-escape')
-    portBuilder.loadTransactions(
-        fileLoc, 0, startDate, endDate
+    outputLoc = outputLoc.encode(u'string-escape')
+
+    transactions = Tx.LoadTx(
+        pt.readCSV(fileLoc, 0), startDate, endDate,
     )
 
-    xlWriter = pt.ExcelWriter(
-        portBuilder,
-        [u'*'],
-        funcType, endDate=endDate, startDate=fiscalYearEnd)
-    xlWriter.Write()
+    if getSectorHoldings:
+        portBuilder = pt.PortfolioBuilder()
+        portBuilder.loadTransactions(transactions)
+
+        xlWriter = pt.ExcelWriter(
+            portBuilder,
+            [u'*'],
+            funcType, endDate=endDate, startDate=fiscalYearEnd)
+        xlWriter.Write()
 
 
 if __name__ == u'__main__':

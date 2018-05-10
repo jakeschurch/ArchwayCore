@@ -103,3 +103,5 @@ ENV/
 *.xlsx#
 
 \.vscode/
+
+*.bak

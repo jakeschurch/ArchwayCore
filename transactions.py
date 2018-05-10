@@ -1,9 +1,21 @@
-#!/usr/bin/python3
 # -*- coding: future_fstrings -*-
-
 from __future__ import absolute_import
 import openpyxl
 import os
+
+# Copyright 2018 Jake Schurch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 
 class TransactionError(Exception):
@@ -63,12 +75,12 @@ class Transaction(object):
         print self.__dict__
 
 
-def GetTx(txFile):
-    txList = LoadTx(txFile, 0)
-    cashTxList = GetCashTx(txList)
-    allTx = txList + cashTxList
+# def GetTx(txFile, startDate, endDate):
+#     txList = LoadTx(txFile, startDate, endDate, 0)
+#     cashTxList = GetCashTx(txList)
+#     allTx = txList + cashTxList
 
-    return allTx
+#     return allTx
 
 
 def GetCashTx(txList):
@@ -88,7 +100,8 @@ def GetCashTx(txList):
     return cashTx
 
 
-def LoadTx(df, startRow=0):
+def LoadTx(df, startDate, endDate):
+
     txList = []
     for _, row in df.iterrows():
         rowPrice = row.loc[u'Sale Price/Share']
@@ -112,7 +125,10 @@ def LoadTx(df, startRow=0):
             u'price': rowPrice,
             u'fees': rowFees
         }
-        txList.append(Transaction(**kwargs))
+        tx = Transaction(**kwargs)
+
+        if tx.datetime >= startDate and tx.datetime <= endDate:
+            txList.append(tx)
     return txList
 
 
@@ -132,7 +148,3 @@ def OutputTx(fileName, txList):
         ws[u'f{0}'.format(i)] = tx.sector
         ws[u'g{0}'.format(i)] = tx.datetime
     i += 1
-
-
-if __name__ == u"__main__":
-    LoadTx(None, 0)

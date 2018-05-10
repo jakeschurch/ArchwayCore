@@ -4,13 +4,27 @@ from openpyxl.styles import Color, Fill, Alignment, Font, Side, Border, PatternF
 from openpyxl.cell import Cell
 from openpyxl.styles.Color import BLACK
 
+# Copyright 2018 Jake Schurch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 class styler(object):
     _metaheader = {
         u'alignment': Alignment(horizontal=True, wrap_text=True),
         u'font': Font(bold=True),
         u'fill': PatternFill(patternType=u'solid', fill_type=u'solid',
-                            fgColor=u'D8A618'),
+                             fgColor=u'D8A618'),
         u'border': Border(
             left=Side(border_style=u'normal', color=BLACK),
             right=Side(border_style=u'normal', color=BLACK),
@@ -27,7 +41,7 @@ class styler(object):
         u'alignment': Alignment(horizontal=True, wrap_text=True),
         u'font': Font(bold=True, color=u'FFD8A618'),
         u'fill': PatternFill(patternType=u'solid', fill_type=u'solid',
-                            fgColor=BLACK),
+                             fgColor=BLACK),
         u'border': Border(
             left=Side(border_style=u'normal', color=BLACK),
             right=Side(border_style=u'normal', color=BLACK),
