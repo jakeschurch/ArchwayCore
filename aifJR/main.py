@@ -3,12 +3,12 @@
 from __future__ import absolute_import
 import portConstruct as pt
 import transactions as Tx
-import future_fstrings
 import datetime as dt
 import os
 import subprocess
 import platform
 import gi
+import glade
 gi.require_version(u'Gtk', u'3.0')
 from gi.repository import Gtk
 
@@ -225,7 +225,7 @@ builder = Gtk.Builder()
 
 def main():
 
-    builder.add_from_file(u"gui.glade")
+    builder.add_from_string(glade.GUI)
     builder.connect_signals(Handler())
 
     global window

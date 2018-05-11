@@ -90,6 +90,20 @@ class xlFunctionSelector(object):
         else:
             return self._abstractBloombergFunc(ticker, u'BEST_PE_RATIO')
 
+    def lastDivDate(self, ticker):
+        if self.funcsWanted == u'factset':
+            return self._abstractFactsetFunc(
+                ticker, f'P_DIVS_PD(0,,,,'u'\"\"PAYDATE\"\")")')
+        else:
+            return self._abstractBloombergFunc(ticker, u'DVD_PAY_DT')
+
+    def lastDiv(self, ticker):
+        if self.funcsWanted == u'factset':
+            return self._abstractFactsetFunc(
+                ticker, f'P_DIVS_PD(0)')
+        else:
+            return self._abstractBloombergFunc(ticker, u'LAST_DPS_GROSS')
+
     def dividends(self, ticker, startDate=None, endDate=None):
         if startDate is None:
             startDate = self.fiscalYearEnd
@@ -129,9 +143,3 @@ class xlFunctionSelector(object):
             return u'=#N/A'
         else:
             return self._abstractBloombergFunc(ticker, u"CUR_MKT_CAP")
-
-
-if __name__ == u'__main__':
-    today = dt.date.today()
-    bbDateFormat = u'%Y%m%d'
-    print today.strftime(bbDateFormat)

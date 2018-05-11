@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: future_fstrings -*-
 
+from __future__ import division
+from __future__ import absolute_import
+import openpyxl
+import transactions as Tx
+import datetime as dt
+import numpy as np
+import pandas as pd
+import xlFuncs
+import os
+
 # Copyright 2018 Jake Schurch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +24,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import division
-from __future__ import absolute_import
-import openpyxl
-import transactions as Tx
-import datetime as dt
-import numpy as np
-import pandas as pd
-import xlFuncs
-import os
 
 
 def readCSV(fileLoc, startRow=0):
@@ -371,7 +371,7 @@ class currentWriter(object):
 
             # Total Dividends Collected YTD
             u'=' + u'+'.join([self.functioner.dividends(pos)
-                             for pos in posList]),
+                              for pos in posList]),
 
             # TODO:  Most Recent Dividend Payment
             u'',
@@ -649,7 +649,6 @@ class alphaWriter(object):
 
 
 class ExcelWriter(object):
-    templatePath = os.path.abspath(u'data_files/template.xlsx')
     outputDateFmt = '%Y%m%d'
 
     def __init__(
@@ -671,11 +670,11 @@ class ExcelWriter(object):
         self.realizedIndex = 4
 
     def WriteHoldings(self, outputPath):
-        wb = openpyxl.load_workbook(self.templatePath)
+        wb = openpyxl.Workbook()
 
         for sector in self.sectors:
-            sectorSheet = wb.copy_worksheet(wb[u'Sheet1'])
-            sectorSheet.title = sector if sector != u'All' else u'Archway Fund'
+            title = sector if sector != u'All' else u'Archway Fund'
+            sectorSheet = wb.create_sheet(title)
 
             # Write Current Holding Data
             current = currentWriter(
@@ -697,10 +696,10 @@ class ExcelWriter(object):
             )
             alpha.Write(sectorSheet)
 
-        wb.remove(
-            wb['Sheet1']
-        )
-        
+        # wb.remove(
+        #     wb['Sheet1']
+        # )
+
         # Save Holdings File to output path.
         holdingsPath = u'{0}/{1}'.format(
             outputPath, u'aif_holdings_{0}_{1}.xlsx'.format(
@@ -714,18 +713,17 @@ class ExcelWriter(object):
 
         def WriteTxLog(self, outputPath):
             # Setup
-            wb = openpyxl.load_workbook(self.templatePath)
-            ws = wb.copy_worksheet[u'Sheet1']
-            ws.title = u'Transaction Log'
+            wb = openpyxl.Workbook()
+            ws = wb.create_sheet('Transaction Log')
+            # ws = wb.copy_worksheet[u'Sheet1']
+            # ws.title = u'Transaction Log'
 
             # Write Headers
-
-
 
         def _writeTX():
             pass
 
-            
+
 class txWriter:
     def __init__(self):
         self.i = 1
@@ -734,6 +732,5 @@ class txWriter:
         # Write Headers
         headers = [
             'SEDOL ID',
-            # TODO: 
+            # TODO:
         ]
-    
